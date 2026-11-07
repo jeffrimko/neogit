@@ -136,6 +136,8 @@ end
 ---@field cached self
 ---@field stat self
 ---@field shortstat self
+---@field numstat self
+---@field null_separated self
 ---@field patch self
 ---@field name_only self
 ---@field no_ext_diff self
@@ -561,6 +563,8 @@ local configurations = {
       cached = "--cached",
       stat = "--stat",
       shortstat = "--shortstat",
+      numstat = "--numstat",
+      null_separated = "-z",
       patch = "--patch",
       name_only = "--name-only",
       no_ext_diff = "--no-ext-diff",

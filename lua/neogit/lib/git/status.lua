@@ -3,6 +3,7 @@ local git = require("neogit.lib.git")
 local util = require("neogit.lib.util")
 local Collection = require("neogit.lib.collection")
 local logger = require("neogit.logger")
+local config = require("neogit.config")
 
 ---@class StatusItem
 ---@field mode string
@@ -207,6 +208,18 @@ local function update_status(state, filter)
           )
         )
       end
+    end
+  end
+
+  if config.values.status.show_file_stats then
+    local unstaged_stats = git.diff.numstat(false)
+    for _, item in ipairs(state.unstaged.items) do
+      item.numstat = unstaged_stats[item.name]
+    end
+
+    local staged_stats = git.diff.numstat(true)
+    for _, item in ipairs(state.staged.items) do
+      item.numstat = staged_stats[item.name]
     end
   end
 end
