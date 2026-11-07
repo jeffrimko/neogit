@@ -11,6 +11,7 @@ local sha256 = vim.fn.sha256
 ---@field parse fun(raw_diff: string[], raw_stats: string[]): Diff
 ---@field build fun(section: string, file: StatusItem)
 ---@field staged_stats fun(): DiffStagedStats
+---@field numstat fun(cached: boolean): table<string, DiffNumstat>
 ---
 ---@class Diff
 ---@field kind string
@@ -419,8 +420,49 @@ local function staged_stats()
   }
 end
 
+---@class DiffNumstat
+---@field additions number
+---@field deletions number
+
+---Line counts per path, from a single `git diff --numstat -z` call.
+---Binary files are omitted, since git reports no line counts for them.
+---@param cached boolean Compare the index to HEAD instead of the worktree to the index
+---@return table<string, DiffNumstat>
+local function numstat(cached)
+  local cmd = git.cli.diff.no_ext_diff.numstat.null_separated
+  if cached then
+    cmd = cmd.cached
+  end
+
+  local result = cmd.call({ hidden = true, ignore_error = true, remove_ansi = false }).stdout
+  -- Neovim delivers the NUL separators from `-z` as newlines (like `git status -z` in status.lua)
+  local tokens = vim.split(table.concat(result, "\n"), "\n", { plain = true })
+
+  local stats = {}
+  local idx = 1
+  while idx <= #tokens do
+    local additions, deletions, path = tokens[idx]:match("^(%S+)\t(%S+)\t(.*)$")
+    idx = idx + 1
+
+    if additions then
+      -- Renames/copies leave the path empty and put old and new paths in the next two tokens
+      if path == "" then
+        path = tokens[idx + 1]
+        idx = idx + 2
+      end
+
+      if path and tonumber(additions) and tonumber(deletions) then
+        stats[path] = { additions = tonumber(additions), deletions = tonumber(deletions) }
+      end
+    end
+  end
+
+  return stats
+end
+
 return { ---@type NeogitGitDiff
   parse = parse_diff,
   staged_stats = staged_stats,
+  numstat = numstat,
   build = build,
 }

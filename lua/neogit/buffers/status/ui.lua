@@ -210,7 +210,52 @@ local RebaseSection = Component.new(function(props)
   })
 end)
 
-local SectionItemFile = function(section, config)
+---@param numstat DiffNumstat|nil
+---@return { additions: string|nil, deletions: string|nil, width: integer }|nil
+local function file_stats_parts(numstat)
+  if not numstat then
+    return nil
+  end
+
+  local function count(n, noun, sign)
+    if n > 0 then
+      return ("%d %s%s%s"):format(n, noun, n == 1 and "" or "s", sign)
+    end
+  end
+
+  local additions = count(numstat.additions, "insertion", "+")
+  local deletions = count(numstat.deletions, "deletion", "-")
+  if not additions and not deletions then
+    return nil
+  end
+
+  -- " (" + parts + ", " separator when both + ")"
+  local width = 3 + #(additions or "") + #(deletions or "") + ((additions and deletions) and 2 or 0)
+  return { additions = additions, deletions = deletions, width = width }
+end
+
+---Width of the "mode (stats)" column, so filenames line up within a section.
+---@param items StatusItem[]
+---@param config NeogitConfig
+---@return integer
+local function mode_column_width(items, config)
+  local width = util.max_length(vim.tbl_values(config.status.mode_text))
+  if config.status.show_file_stats then
+    for _, item in ipairs(items or {}) do
+      local mode = config.status.mode_text[item.mode]
+      local stats = mode and mode ~= "" and file_stats_parts(item.numstat)
+      if stats then
+        width = math.max(width, #mode + stats.width)
+      end
+    end
+  end
+
+  return width + config.status.mode_padding
+end
+
+local SectionItemFile = function(section, config, items)
+  local column_width = mode_column_width(items, config)
+
   return Component.new(function(item)
     local load_diff = function(item)
       ---@param this Component
@@ -280,14 +325,26 @@ local SectionItemFile = function(section, config)
     end
 
     local mode = config.status.mode_text[item.mode]
+    local stats = config.status.show_file_stats and mode ~= "" and file_stats_parts(item.numstat) or nil
     local mode_text
+    local mode_pad = ""
     if mode == "" then
       mode_text = ""
     elseif config.status.mode_padding > 0 then
-      mode_text = util.pad_right(
-        mode,
-        util.max_length(vim.tbl_values(config.status.mode_text)) + config.status.mode_padding
-      )
+      mode_text = mode
+      mode_pad = (" "):rep(column_width - #mode - (stats and stats.width or 0))
+    end
+
+    local stats_text = text("")
+    if stats then
+      local subtle = text.highlight("NeogitSubtleText")
+      stats_text = row {
+        subtle(" ("),
+        text.highlight("NeogitDiffAdditions")(stats.additions or ""),
+        subtle((stats.additions and stats.deletions) and ", " or ""),
+        text.highlight("NeogitDiffDeletions")(stats.deletions or ""),
+        subtle(")"),
+      }
     end
 
     local unmerged_types = {
@@ -329,6 +386,8 @@ local SectionItemFile = function(section, config)
     return col.tag("Item")({
       row {
         text.highlight(highlight)(mode_text),
+        stats_text,
+        text(mode_pad),
         text(name),
         text.highlight("NeogitSubtleText")(unmerged_types[item.mode] or ""),
         file_mode_change,
@@ -755,7 +814,7 @@ function M.Status(state, config)
         show_untracked and Section {
           title = SectionTitle { title = "Untracked files", highlight = "NeogitUntrackedfiles" },
           count = true,
-          render = SectionItemFile("untracked", config),
+          render = SectionItemFile("untracked", config, state.untracked.items),
           items = state.untracked.items,
           folded = config.sections.untracked.folded,
           name = "untracked",
@@ -763,7 +822,7 @@ function M.Status(state, config)
         show_unstaged and Section {
           title = SectionTitle { title = "Unstaged changes", highlight = "NeogitUnstagedchanges" },
           count = true,
-          render = SectionItemFile("unstaged", config),
+          render = SectionItemFile("unstaged", config, state.unstaged.items),
           items = state.unstaged.items,
           folded = config.sections.unstaged.folded,
           name = "unstaged",
@@ -771,7 +830,7 @@ function M.Status(state, config)
         show_staged and Section {
           title = SectionTitle { title = "Staged changes", highlight = "NeogitStagedchanges" },
           count = true,
-          render = SectionItemFile("staged", config),
+          render = SectionItemFile("staged", config, state.staged.items),
           items = state.staged.items,
           folded = config.sections.staged.folded,
           name = "staged",
