@@ -37,6 +37,29 @@ RSpec.describe "Status Buffer", :git, :nvim do
     end
   end
 
+  context "with file stats enabled" do
+    let(:neogit_config) { "{ status = { show_file_stats = true } }" }
+
+    before do
+      File.write("foo", "a\nb\n")
+      File.write("bar", "a\n")
+      git.add(%w[foo bar])
+      git.commit("initial commit")
+      File.write("foo", "a\nc\nd\n")
+      File.write("bar", "a\nb\n")
+      git.add("bar")
+      nvim.refresh
+    end
+
+    it "shows line counts for unstaged files" do
+      expect(nvim.screen.join("\n")).to include("modified (+2 -1)   foo")
+    end
+
+    it "shows line counts for staged files" do
+      expect(nvim.screen.join("\n")).to include("modified (+1)   bar")
+    end
+  end
+
   context "with disabled mapping and no replacement" do
     let(:neogit_config) { "{ mappings = { status = { j = false }, popup = { b = false } } }" }
 
