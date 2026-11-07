@@ -477,13 +477,16 @@ M.v_diff_popup = function(self)
     local commits = self.buffer.ui:get_commits_in_selection()
     ---@type string|string[]|nil
     local item
+    local original_name
     if #commits > 0 then
       table.insert(commits, 1, commits[1] .. "~1")
       item = commits
     else
       item = self.buffer.ui:get_yankable_under_cursor()
+      local status_item = self.buffer.ui:get_item_under_cursor()
+      original_name = status_item and status_item.original_name
     end
-    p { section = { name = section and section.name }, item = { name = item } }
+    p { section = { name = section and section.name }, item = { name = item, original_name = original_name } }
   end)
 end
 
@@ -1543,9 +1546,10 @@ M.n_diff_popup = function(self)
   return popups.open("diff", function(p)
     local section = self.buffer.ui:get_selection().section
     local item = self.buffer.ui:get_yankable_under_cursor()
+    local status_item = self.buffer.ui:get_item_under_cursor()
     p {
       section = { name = section and section.name },
-      item = { name = item },
+      item = { name = item, original_name = status_item and status_item.original_name },
     }
   end)
 end

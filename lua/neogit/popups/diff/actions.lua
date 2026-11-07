@@ -102,7 +102,10 @@ function M.stat(popup)
   local section_name = section and section.name
   local cmd
   if section_name == "staged" then
-    cmd = git.cli.diff.no_ext_diff.cached.stat.files(file)
+    -- For a staged rename, pass both paths so git can pair them up as a rename
+    -- instead of reporting the new path as entirely added.
+    local original = type(item.original_name) == "string" and item.original_name or nil
+    cmd = git.cli.diff.no_ext_diff.cached.stat.files(file, original)
   elseif section_name == "untracked" then
     -- `git diff --no-index` exits 1 when there is a difference, which is expected here.
     cmd = git.cli.diff.no_ext_diff.no_index.stat.files("/dev/null", file)
