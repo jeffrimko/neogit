@@ -494,7 +494,7 @@ function M.get_default_values()
       HEAD_padding = 10,
       HEAD_folded = false,
       mode_padding = 3,
-      show_file_stats = true,
+      show_file_stats = false,
       mode_text = {
         M = "modified",
         N = "new file",
