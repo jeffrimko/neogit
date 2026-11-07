@@ -11,7 +11,7 @@ local sha256 = vim.fn.sha256
 ---@field parse fun(raw_diff: string[], raw_stats: string[]): Diff
 ---@field build fun(section: string, file: StatusItem)
 ---@field staged_stats fun(): DiffStagedStats
----@field numstat fun(cached: boolean): table<string, DiffNumstat>
+---@field numstat fun(cached: boolean, paths: string[]|nil): table<string, DiffNumstat>
 ---
 ---@class Diff
 ---@field kind string
@@ -427,11 +427,16 @@ end
 ---Line counts per path, from a single `git diff --numstat -z` call.
 ---Binary files are omitted, since git reports no line counts for them.
 ---@param cached boolean Compare the index to HEAD instead of the worktree to the index
+---@param paths string[]|nil Limit the diff to these paths; nil diffs the whole repository
 ---@return table<string, DiffNumstat>
-local function numstat(cached)
+local function numstat(cached, paths)
   local cmd = git.cli.diff.no_ext_diff.numstat.null_separated
   if cached then
     cmd = cmd.cached
+  end
+
+  if paths then
+    cmd = cmd.files(unpack(paths))
   end
 
   local result = cmd.call({ hidden = true, ignore_error = true, remove_ansi = false }).stdout

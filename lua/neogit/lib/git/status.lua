@@ -88,6 +88,49 @@ local function item_collection(state, section, filter)
   return Collection.new(items):key_by("name")
 end
 
+---Fill in `numstat` for a section's items. Like the cached diffs, an item's previous
+---counts are kept unless the refresh filter invalidates it, so a partial refresh only
+---asks git about the files that changed.
+---@param items StatusItem[]
+---@param old_items table<string, StatusItem> Previous items keyed by name
+---@param section string
+---@param cached boolean
+---@param filter ItemFilter
+local function update_numstats(items, old_items, section, cached, filter)
+  local pending = {}
+  for _, item in ipairs(items) do
+    local old = old_items[item.name]
+    if old and not filter:accepts(section, item.name) then
+      item.numstat = old.numstat
+    else
+      table.insert(pending, item)
+    end
+  end
+
+  if #pending == 0 then
+    return
+  end
+
+  -- When every item is stale (e.g. a full refresh), diff the whole repository rather
+  -- than passing every path, which could overflow the command line in large changesets.
+  local paths
+  if #pending < #items then
+    paths = {}
+    for _, item in ipairs(pending) do
+      table.insert(paths, item.name)
+      -- Include the old path so git still pairs a rename instead of counting it as all-new.
+      if item.original_name then
+        table.insert(paths, item.original_name)
+      end
+    end
+  end
+
+  local stats = git.diff.numstat(cached, paths)
+  for _, item in ipairs(pending) do
+    item.numstat = stats[item.name]
+  end
+end
+
 local function update_status(state, filter)
   local old_files = {
     staged_files = item_collection(state, "staged", filter),
@@ -213,15 +256,8 @@ local function update_status(state, filter)
 
   -- Stats render in the mode column, which is hidden when mode_padding is 0.
   if config.values.status.show_file_stats and config.values.status.mode_padding > 0 then
-    local unstaged_stats = git.diff.numstat(false)
-    for _, item in ipairs(state.unstaged.items) do
-      item.numstat = unstaged_stats[item.name]
-    end
-
-    local staged_stats = git.diff.numstat(true)
-    for _, item in ipairs(state.staged.items) do
-      item.numstat = staged_stats[item.name]
-    end
+    update_numstats(state.unstaged.items, old_files.unstaged_files, "unstaged", false, filter)
+    update_numstats(state.staged.items, old_files.staged_files, "staged", true, filter)
   end
 end
 
