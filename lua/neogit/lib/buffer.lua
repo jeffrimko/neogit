@@ -1029,7 +1029,16 @@ end
 ---@param name string
 ---@return Buffer
 function Buffer.from_name(name)
-  local buffer_handle = fn.bufnr(name)
+  -- Match the full buffer name exactly. fn.bufnr(name) also matches partial
+  -- names, so "NeogitStatus" would find another repo's status buffer.
+  local full = vim.fs.normalize(fn.fnamemodify(name, ":p"))
+  local buffer_handle = -1
+  for _, b in ipairs(api.nvim_list_bufs()) do
+    if vim.fs.normalize(api.nvim_buf_get_name(b)) == full then
+      buffer_handle = b
+      break
+    end
+  end
   if buffer_handle == -1 then
     buffer_handle = api.nvim_create_buf(false, false)
     api.nvim_buf_set_name(buffer_handle, name)

@@ -134,7 +134,7 @@ function M:open(kind)
   local mappings = config.get_reversed_status_maps()
 
   self.buffer = Buffer.create {
-    name = "NeogitStatus",
+    name = vim.fs.joinpath(self.cwd, "NeogitStatus"),
     filetype = "NeogitStatus",
     cwd = self.cwd,
     context_highlight = not config.values.disable_context_highlighting and config.values.log_pager == nil,
