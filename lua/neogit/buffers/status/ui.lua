@@ -217,20 +217,20 @@ local function file_stats_parts(numstat)
     return nil
   end
 
-  local function count(n, noun, sign)
+  local function count(n, sign)
     if n > 0 then
-      return ("%d %s%s%s"):format(n, noun, n == 1 and "" or "s", sign)
+      return sign .. n
     end
   end
 
-  local additions = count(numstat.additions, "insertion", "+")
-  local deletions = count(numstat.deletions, "deletion", "-")
+  local additions = count(numstat.additions, "+")
+  local deletions = count(numstat.deletions, "-")
   if not additions and not deletions then
     return nil
   end
 
-  -- " (" + parts + ", " separator when both + ")"
-  local width = 3 + #(additions or "") + #(deletions or "") + ((additions and deletions) and 2 or 0)
+  -- " (" + parts + " " separator when both + ")"
+  local width = 3 + #(additions or "") + #(deletions or "") + ((additions and deletions) and 1 or 0)
   return { additions = additions, deletions = deletions, width = width }
 end
 
@@ -341,7 +341,7 @@ local SectionItemFile = function(section, config, items)
       stats_text = row {
         subtle(" ("),
         text.highlight("NeogitDiffAdditions")(stats.additions or ""),
-        subtle((stats.additions and stats.deletions) and ", " or ""),
+        subtle((stats.additions and stats.deletions) and " " or ""),
         text.highlight("NeogitDiffDeletions")(stats.deletions or ""),
         subtle(")"),
       }
