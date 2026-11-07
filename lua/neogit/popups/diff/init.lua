@@ -13,6 +13,11 @@ function M.create(env)
       and env.item
       and type(env.item.name) == "string"
     or false
+  local file_selected = env.section
+      and vim.tbl_contains({ "staged", "unstaged", "untracked" }, env.section.name)
+      and env.item
+      and type(env.item.name) == "string"
+    or false
 
   local p = popup
     .builder()
@@ -22,6 +27,7 @@ function M.create(env)
     :action_if(has_diff_viewer and commit_selected, "h", "this..HEAD", actions.this_to_HEAD)
     :action_if(has_diff_viewer, "r", "range", actions.range)
     :action("p", "paths")
+    :action_if(file_selected, "S", "stat", actions.stat)
     :new_action_group()
     :action_if(has_diff_viewer, "u", "unstaged", actions.unstaged)
     :action_if(has_diff_viewer, "s", "staged", actions.staged)

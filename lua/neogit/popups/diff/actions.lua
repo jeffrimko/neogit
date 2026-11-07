@@ -13,6 +13,7 @@ end
 local util = require("neogit.lib.util")
 local git = require("neogit.lib.git")
 local input = require("neogit.lib.input")
+local notification = require("neogit.lib.notification")
 
 -- aka "dwim" = do what I mean
 function M.this(popup)
@@ -86,6 +87,36 @@ function M.range(popup)
   elseif choice == "2" then
     get_diff_integration().open("range", range_from .. "..." .. range_to)
   end
+end
+
+function M.stat(popup)
+  popup:close()
+
+  local item = popup:get_env("item")
+  local section = popup:get_env("section")
+  local file = item and item.name
+  if type(file) ~= "string" then
+    return
+  end
+
+  local section_name = section and section.name
+  local cmd
+  if section_name == "staged" then
+    cmd = git.cli.diff.no_ext_diff.cached.stat.files(file)
+  elseif section_name == "untracked" then
+    -- `git diff --no-index` exits 1 when there is a difference, which is expected here.
+    cmd = git.cli.diff.no_ext_diff.no_index.stat.files("/dev/null", file)
+  else
+    cmd = git.cli.diff.no_ext_diff.stat.files(file)
+  end
+
+  local output = cmd.call({ hidden = true, ignore_error = section_name == "untracked" }).stdout
+  if not output or vim.tbl_isempty(output) then
+    notification.info("No changes for " .. file)
+    return
+  end
+
+  notification.info(table.concat(output, "\n"))
 end
 
 function M.worktree(popup)
