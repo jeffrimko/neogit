@@ -240,7 +240,7 @@ end
 ---@return integer
 local function mode_column_width(items, config)
   local width = util.max_length(vim.tbl_values(config.status.mode_text))
-  if config.status.show_file_stats then
+  if config.status.show_file_stats and config.status.mode_padding > 0 then
     for _, item in ipairs(items or {}) do
       local mode = config.status.mode_text[item.mode]
       local stats = mode and mode ~= "" and file_stats_parts(item.numstat)
@@ -325,7 +325,12 @@ local SectionItemFile = function(section, config, items)
     end
 
     local mode = config.status.mode_text[item.mode]
-    local stats = config.status.show_file_stats and mode ~= "" and file_stats_parts(item.numstat) or nil
+    -- Stats are part of the mode column, which is hidden when mode_padding is 0.
+    local stats = config.status.show_file_stats
+        and config.status.mode_padding > 0
+        and mode ~= ""
+        and file_stats_parts(item.numstat)
+      or nil
     local mode_text
     local mode_pad = ""
     if mode == "" then
