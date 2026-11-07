@@ -211,7 +211,8 @@ local function update_status(state, filter)
     end
   end
 
-  if config.values.status.show_file_stats then
+  -- Stats render in the mode column, which is hidden when mode_padding is 0.
+  if config.values.status.show_file_stats and config.values.status.mode_padding > 0 then
     local unstaged_stats = git.diff.numstat(false)
     for _, item in ipairs(state.unstaged.items) do
       item.numstat = unstaged_stats[item.name]
